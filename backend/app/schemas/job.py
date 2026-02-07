@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-
+from typing import Optional
 
 class JobCreate(BaseModel):
     mode: str          # sequential | parallel
@@ -9,4 +9,8 @@ class JobCreate(BaseModel):
 class JobStatus(BaseModel):
     id: int
     status: str
-    duration_ms: float | None
+    duration_ms: Optional[float]
+    progress: int
+
+    class Config:
+        orm_mode = True

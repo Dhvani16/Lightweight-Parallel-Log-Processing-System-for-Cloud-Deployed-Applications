@@ -7,7 +7,8 @@ services:
     ports:
       - "8000:8000"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
 
   frontend:
     build: ./frontend
@@ -24,6 +25,11 @@ services:
       POSTGRES_USER: loguser
       POSTGRES_PASSWORD: logpass
       POSTGRES_DB: logdb
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U loguser"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
