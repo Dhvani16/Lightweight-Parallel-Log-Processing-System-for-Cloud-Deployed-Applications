@@ -10,7 +10,11 @@ def process_log_sequential(file_path: str, cancel_check, progress_cb) -> dict:
 
     for i, line in enumerate(lines, start=1):
         if cancel_check():
-            break
+            return {
+                "total_lines": total_lines,
+                "error_count": error_count,
+                "warning_count": warning_count,
+            }
 
         total_lines += 1
         l = line.lower()
@@ -21,7 +25,7 @@ def process_log_sequential(file_path: str, cancel_check, progress_cb) -> dict:
             warning_count += 1
 
         if i % 100 == 0 or i == total:
-            percent = int((i / total) * 100)
+            percent = min(100, int((i / total) * 100))
             progress_cb(percent)
 
     return {

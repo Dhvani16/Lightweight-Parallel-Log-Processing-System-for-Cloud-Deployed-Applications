@@ -13,8 +13,11 @@ class Job(Base):
     workers = Column(Integer, nullable=False)      # 1, 2, 4
 
     status = Column(String, default="pending")        # pending | running | completed | failed
+    progress = Column(Integer, default=0)
 
     duration_ms = Column(Float, nullable=True)
+    error_message = Column(String, nullable=True)
+    
     cancel_requested = Column(Boolean, default=False)
 
-    progress = Column(Integer, default=0)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

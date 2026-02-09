@@ -9,8 +9,9 @@ class JobCreate(BaseModel):
 class JobStatus(BaseModel):
     id: int
     status: str
+    progress: Optional[int]
     duration_ms: Optional[float]
-    progress: int
+    error_message: Optional[str] = None
 
     class Config:
-        orm_mode = True
+        from_attributes = True

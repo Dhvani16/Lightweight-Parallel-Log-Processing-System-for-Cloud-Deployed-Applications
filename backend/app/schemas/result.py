@@ -5,3 +5,6 @@ class ResultOut(BaseModel):
     total_lines: int
     error_count: int
     warning_count: int
+
+    class Config:
+        from_attributes = True

@@ -10,37 +10,55 @@ from app.processing.progress import update_progress
 
 def run_job(job_id: int, file_path: str):
     db = SessionLocal()
-    job = db.query(Job).get(job_id)
+    try:
+        job = db.query(Job).filter(Job.id == job_id).first()
+        if not job:
+            return
 
-    job.status = "running"
-    job.progress = 0
-    db.commit()
+        job.status = "running"
+        job.progress = 0
+        db.commit()
 
-    def cancel_check():
-        db.refresh(job)
-        return job.status == "cancelled"
+        def cancel_check():
+            db.refresh(job)
+            return job.cancel_requested is True
 
-    def progress_cb(p):
-        update_progress(job_id, p)
+        def progress_cb(p: int):
+            update_progress(job.id, p)
 
-    start = time.perf_counter()
+        start = time.perf_counter()
 
-    if job.mode == "sequential":
-        metrics = process_log_sequential(file_path, cancel_check, progress_cb)
-    else:
-        metrics = process_log_parallel(file_path, job.workers, progress_cb)
+        if job.mode == "sequential":
+            metrics = process_log_sequential(
+                file_path,
+                cancel_check,
+                progress_cb,
+            )
+        else:
+            # Parallel jobs are NOT cancellable mid-run
+            metrics = process_log_parallel(
+                file_path,
+                job.workers,
+                progress_cb,
+            )
+            update_progress(job.id, 100)
 
-    job.status = "completed"
-    job.progress = 100
-    job.duration_ms = (time.perf_counter() - start) * 1000
+        if job.cancel_requested:
+            job.status = "cancelled"
+            job.progress = progress_cb
+            db.commit()
+            return
 
-    db.add(Result(job_id=job.id, **metrics))
-    db.commit()
-    db.close()
+        job.status = "completed"
+        job.progress = 100
+        job.duration_ms = (time.perf_counter() - start) * 1000
 
-def is_cancelled(db: Session, job_id: int) -> bool:
-    return (
-        db.query(Job.cancel_requested)
-        .filter(Job.id == job_id)
-        .scalar()
-    )
+        db.add(Result(job_id=job.id, **metrics))
+        db.commit()
+
+    except Exception:
+        job.status = "failed"
+        db.commit()
+        raise
+    finally:
+        db.close()

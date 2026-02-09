@@ -45,7 +45,9 @@ def upload_log(
     return {
         "id": job.id,
         "status": job.status,
+        "progress": 0,
         "duration_ms": None,
+        "error_message": job.error_message,
     }
 
 
@@ -69,6 +71,7 @@ def get_job(
         "status": job.status,
         "duration_ms": job.duration_ms,
         "progress": job.progress,
+        "error_message": job.error_message,
     }
 
 @router.get("", response_model=list[JobStatus])
@@ -113,7 +116,6 @@ def cancel_job(
         )
 
     job.cancel_requested = True
-    job.status = "cancelled"
     db.commit()
 
     return {"message": "Cancellation requested"}
