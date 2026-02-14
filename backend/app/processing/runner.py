@@ -1,6 +1,4 @@
 import time
-from sqlalchemy.orm import Session
-
 from app.core.database import SessionLocal
 from app.models.job import Job
 from app.models.result import Result
@@ -58,6 +56,8 @@ def run_job(job_id: int, file_path: str):
 
     except Exception:
         job.status = "failed"
+        job.error_message = str(e)
+        job.progress = 0
         db.commit()
         raise
     finally:

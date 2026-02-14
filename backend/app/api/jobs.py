@@ -45,8 +45,8 @@ def upload_log(
     return {
         "id": job.id,
         "status": job.status,
-        "progress": 0,
-        "duration_ms": None,
+        "progress": job.progress,
+        "duration_ms": job.duration_ms,
         "error_message": job.error_message,
     }
 
