@@ -26,7 +26,7 @@ services:
       POSTGRES_PASSWORD: logpass
       POSTGRES_DB: logdb
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U loguser"]
+      test: ["CMD-SHELL", "pg_isready -U loguser -d logdb"]
       interval: 5s
       timeout: 5s
       retries: 5

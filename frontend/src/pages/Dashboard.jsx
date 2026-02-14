@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import api from "../api/client";
 import DurationBar from "../charts/DurationBar";
+import PerformanceStats from "../components/PerformanceStats";
 
 export default function Dashboard() {
   const [jobs, setJobs] = useState([]);
@@ -105,6 +106,7 @@ export default function Dashboard() {
       })}
 
       <DurationBar jobs={jobs.filter((j) => j.status === "completed")} />
+      <PerformanceStats />
     </div>
   );
 }
