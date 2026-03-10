@@ -1,0 +1,131 @@
+import { useEffect, useState } from "react";
+import api from "../api/client";
+import DurationBar from "../charts/DurationBar";
+import PerformanceStats from "../components/PerformanceStats";
+
+export default function Dashboard() {
+  const [jobs, setJobs] = useState([]);
+  const [results, setResults] = useState({});
+
+  // Poll jobs every 1.5s
+  useEffect(() => {
+    const fetchJobs = async () => {
+      try {
+        const res = await api.get("/jobs");
+        setJobs(res.data);
+      } catch (err) {
+        console.error("Failed to fetch jobs:", err);
+      }
+    };
+
+    fetchJobs();
+    const interval = setInterval(fetchJobs, 1500);
+    return () => clearInterval(interval);
+  }, []);
+
+  const cancelJob = async (id) => {
+    try {
+      await api.post(`/jobs/${id}/cancel`);
+    } catch (err) {
+      console.error("Failed to cancel job:", err);
+    }
+  };
+
+  const fetchResult = async (jobId) => {
+    if (results[jobId]) return;
+
+    try {
+      const res = await api.get(`/results/${jobId}`);
+      setResults((prev) => ({
+        ...prev,
+        [jobId]: res.data,
+      }));
+    } catch {
+      // result not ready yet
+    }
+  };
+
+  // Fetch results when jobs update
+  useEffect(() => {
+    jobs.forEach((job) => {
+      if (job.status === "completed" && !results[job.id]) {
+        fetchResult(job.id);
+      }
+    });
+  }, [jobs]); // intentionally not including `results` to avoid loops
+
+  return (
+    <div>
+      <h2>Jobs</h2>
+
+      {jobs.map((job) => {
+        const progress = job.progress ?? 0;
+
+        return (
+          <div key={job.id} style={{ marginBottom: 20 }}>
+            <div>
+              <strong>Job #{job.id}</strong> — {job.status}
+            </div>
+
+            <div
+              style={{
+                background: "#eee",
+                borderRadius: 4,
+                overflow: "hidden",
+              }}
+            >
+              <div
+                style={{
+                  width: `${progress}%`,
+                  background:
+                    job.status === "completed"
+                      ? "green"
+                      : job.status === "cancelled"
+                      ? "red"
+                      : "#007bff",
+                  height: 12,
+                  transition: "width 0.3s",
+                }}
+              />
+            </div>
+
+            <div>{progress}%</div>
+
+            {job.status === "running" && (
+              <button onClick={() => cancelJob(job.id)}>Cancel</button>
+            )}
+
+            {job.status === "completed" && (
+              <>
+                <div>
+                  Duration:{" "}
+                  {job.duration_ms
+                    ? job.duration_ms.toFixed(2)
+                    : "N/A"}{" "}
+                  ms
+                </div>
+
+                {results[job.id] && (
+                  <div style={{ marginTop: 6 }}>
+                    <div>Total lines: {results[job.id].total_lines}</div>
+                    <div>Errors: {results[job.id].error_count}</div>
+                    <div>Warnings: {results[job.id].warning_count}</div>
+                  </div>
+                )}
+              </>
+            )}
+
+            {job.status === "failed" && (
+              <div style={{ color: "red", marginTop: 6 }}>
+                Failed: {job.error_message || "Unknown error"}
+              </div>
+            )}
+          </div>
+        );
+      })}
+
+      <DurationBar jobs={jobs.filter((j) => j.status === "completed")} />
+      <PerformanceStats />
+    </div>
+  );
+}
