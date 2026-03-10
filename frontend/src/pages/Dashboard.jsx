@@ -7,10 +7,15 @@ export default function Dashboard() {
   const [jobs, setJobs] = useState([]);
   const [results, setResults] = useState({});
 
+  // Poll jobs every 1.5s
   useEffect(() => {
     const fetchJobs = async () => {
-      const res = await api.get("/jobs");
-      setJobs(res.data);
+      try {
+        const res = await api.get("/jobs");
+        setJobs(res.data);
+      } catch (err) {
+        console.error("Failed to fetch jobs:", err);
+      }
     };
 
     fetchJobs();
@@ -19,7 +24,11 @@ export default function Dashboard() {
   }, []);
 
   const cancelJob = async (id) => {
-    await api.post(`/jobs/${id}/cancel`);
+    try {
+      await api.post(`/jobs/${id}/cancel`);
+    } catch (err) {
+      console.error("Failed to cancel job:", err);
+    }
   };
 
   const fetchResult = async (jobId) => {
@@ -27,7 +36,7 @@ export default function Dashboard() {
 
     try {
       const res = await api.get(`/results/${jobId}`);
-      setResults(prev => ({
+      setResults((prev) => ({
         ...prev,
         [jobId]: res.data,
       }));
@@ -36,17 +45,21 @@ export default function Dashboard() {
     }
   };
 
+  // Fetch results when jobs update
+  useEffect(() => {
+    jobs.forEach((job) => {
+      if (job.status === "completed" && !results[job.id]) {
+        fetchResult(job.id);
+      }
+    });
+  }, [jobs]); // intentionally not including `results` to avoid loops
+
   return (
     <div>
       <h2>Jobs</h2>
 
       {jobs.map((job) => {
         const progress = job.progress ?? 0;
-
-        // 🔑 Trigger result fetch once job completes
-        if (job.status === "completed") {
-          fetchResult(job.id);
-        }
 
         return (
           <div key={job.id} style={{ marginBottom: 20 }}>
@@ -84,7 +97,13 @@ export default function Dashboard() {
 
             {job.status === "completed" && (
               <>
-                <div>Duration: {job.duration_ms.toFixed(2)} ms</div>
+                <div>
+                  Duration:{" "}
+                  {job.duration_ms
+                    ? job.duration_ms.toFixed(2)
+                    : "N/A"}{" "}
+                  ms
+                </div>
 
                 {results[job.id] && (
                   <div style={{ marginTop: 6 }}>

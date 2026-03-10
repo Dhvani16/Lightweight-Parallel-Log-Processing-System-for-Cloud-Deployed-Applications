@@ -4,7 +4,6 @@ from app.models.job import Job
 from app.models.result import Result
 from app.processing.sequential import process_log_sequential
 from app.processing.parallel import process_log_parallel
-from app.processing.progress import update_progress
 
 def run_job(job_id: int, file_path: str):
     db = SessionLocal()
@@ -17,36 +16,42 @@ def run_job(job_id: int, file_path: str):
         job.progress = 0
         db.commit()
 
-        def cancel_check():
-            db.refresh(job)
-            return job.cancel_requested is True
-
-        def progress_cb(p: int):
-            update_progress(job.id, p)
-
         start = time.perf_counter()
 
         if job.mode == "sequential":
-            metrics = process_log_sequential(
-                file_path,
-                cancel_check,
-                progress_cb,
-            )
+            last_cancel_check = 0
+
+            def cancel_check():
+                nonlocal last_cancel_check
+                now = time.perf_counter()
+                if now - last_cancel_check > 1:
+                    db.refresh(job)
+                    last_cancel_check = now
+                return job.cancel_requested is True
+
+            def progress_cb(p: int):
+                job.progress = min(p, 100)
+                db.flush()
+
+            metrics = process_log_sequential(file_path, cancel_check, progress_cb)
+
         else:
-            # Parallel jobs are NOT cancellable mid-run
+            # Parallel processing
             metrics = process_log_parallel(
                 file_path,
                 job.workers,
-                progress_cb,
+                lambda p: None  # avoid DB in worker processes
             )
-            update_progress(job.id, 100)
+            job.progress = 100
+            db.flush()
 
+        db.refresh(job)
         if job.cancel_requested:
             job.status = "cancelled"
-            job.progress = progress_cb
             db.commit()
             return
 
+        # Mark completion
         job.status = "completed"
         job.progress = 100
         job.duration_ms = (time.perf_counter() - start) * 1000
@@ -54,11 +59,12 @@ def run_job(job_id: int, file_path: str):
         db.add(Result(job_id=job.id, **metrics))
         db.commit()
 
-    except Exception:
+    except Exception as e:
         job.status = "failed"
         job.error_message = str(e)
         job.progress = 0
         db.commit()
         raise
+
     finally:
         db.close()

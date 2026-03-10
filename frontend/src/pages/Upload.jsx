@@ -1,10 +1,7 @@
-import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import api from "../api/client";
 
 export default function Upload({ onJobCreated }) {
-  const navigate = useNavigate();
-
   const [file, setFile] = useState(null);
   const [mode, setMode] = useState("sequential");
   const [workers, setWorkers] = useState(1);
@@ -21,7 +18,6 @@ export default function Upload({ onJobCreated }) {
     );
 
     onJobCreated?.(res.data.id); 
-    navigate("/dashboard");
   };
 
   return (

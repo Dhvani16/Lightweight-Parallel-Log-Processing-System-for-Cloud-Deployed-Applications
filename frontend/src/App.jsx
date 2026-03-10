@@ -1,21 +1,30 @@
-import { useState } from "react";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Login from "./pages/Login";
 import Upload from "./pages/Upload";
 import Dashboard from "./pages/Dashboard";
+import StatsPage from "./pages/StatsPage";
+import HealthPage from "./pages/HealthPage";
+import Layout from "./components/Layout";
 
 function App() {
-  const [loggedIn, setLoggedIn] = useState(!!localStorage.getItem("token"));
-  const [jobId, setJobId] = useState(null);
-
-  if (!loggedIn) {
-    return <Login onLogin={() => setLoggedIn(true)} />;
-  }
+  const token = localStorage.getItem("token");
 
   return (
-    <div>
-      <Upload onJobCreated={setJobId} />
-      {jobId && <Dashboard jobId={jobId} />}
-    </div>
+    <BrowserRouter>
+      {!token ? (
+        <Login onLogin={() => window.location.reload()} />
+      ) : (
+        <Layout>
+          <Routes>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/upload" element={<Upload />} />
+            <Route path="/stats" element={<StatsPage />} />
+            <Route path="/health" element={<HealthPage />} />
+            <Route path="*" element={<Navigate to="/" />} />
+          </Routes>
+        </Layout>
+      )}
+    </BrowserRouter>
   );
 }
 
